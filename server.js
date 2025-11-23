@@ -152,6 +152,15 @@ function broadcastLocationUpdate(trackingId, location) {
   });
 }
 
+// Health check endpoint
+app.get('/health', (req, res) => {
+  res.json({ 
+    status: 'ok', 
+    message: 'Location Tracker API is running',
+    timestamp: new Date().toISOString()
+  });
+});
+
 // Serve HTML pages
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
@@ -174,6 +183,17 @@ app.get('/whatsapp', (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
+
+// 404 handler - must be last
+app.use((req, res) => {
+  res.status(404).json({ 
+    error: 'Not Found',
+    path: req.path,
+    method: req.method,
+    message: 'The requested resource was not found. Available routes: /, /track/:id, /admin, /admin/view/:id, /whatsapp, /api/sessions, /health'
+  });
+});
+
 server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
