@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Send Tracking Link via WhatsApp</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .card {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+        .subtitle {
+            color: #7f8c8d;
+            margin-bottom: 30px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #555;
+        }
+        input, textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 16px;
+            box-sizing: border-box;
+        }
+        input:focus, textarea:focus {
+            outline: none;
+            border-color: #25d366;
+        }
+        textarea {
+            min-height: 120px;
+            font-family: inherit;
+        }
+        .btn {
+            width: 100%;
+            padding: 14px;
+            background: #25d366;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        .btn:hover {
+            background: #20ba5a;
+        }
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .info {
+            background: #e8f5e9;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+            font-size: 14px;
+            color: #2e7d32;
+        }
+        .error {
+            background: #ffebee;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+            font-size: 14px;
+            color: #c62828;
+        }
+        .code {
+            background: #f5f5f5;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 12px;
+            margin-top: 20px;
+            overflow-x: auto;
+        }
+        .note {
+            font-size: 13px;
+            color: #666;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>📲 Send Tracking Link via WhatsApp</h1>
+        <p class="subtitle">Simple WhatsApp Web integration (no API required)</p>
+        
+        <div class="form-group">
+            <label>Tracking ID</label>
+            <input type="text" id="trackingId" placeholder="e.g., abc123xyz" required>
+            <p class="note">Get this from your admin dashboard after creating a session</p>
+        </div>
+        
+        <div class="form-group">
+            <label>Phone Number (with country code)</label>
+            <input type="tel" id="phoneNumber" placeholder="e.g., 447123456789 (no + sign)" required>
+            <p class="note">Format: Country code + number (e.g., 447123456789 for UK)</p>
+        </div>
+        
+        <div class="form-group">
+            <label>Message Template</label>
+            <textarea id="message">📍 Location Tracking Request
+
+Hi! Please click the link below to share your location with us:
+
+{TRACKING_URL}
+
+Instructions:
+1. Click the link
+2. Tap "Start Sharing Location"
+3. Allow location access
+4. Keep the page open
+
+Thank you!</textarea>
+        </div>
+        
+        <button class="btn" onclick="sendViaWhatsApp()">
+            💬 Open WhatsApp to Send
+        </button>
+        
+        <div id="result"></div>
+        
+        <div class="code">
+            <strong>💡 Pro Tip:</strong> For automated sending, integrate with Green API or similar WhatsApp Business API services.
+        </div>
+    </div>
+    
+    <script>
+        // Get tracking ID from URL parameter if present
+        const urlParams = new URLSearchParams(window.location.search);
+        const trackingIdFromUrl = urlParams.get('trackingId');
+        if (trackingIdFromUrl) {
+            document.getElementById('trackingId').value = trackingIdFromUrl;
+        }
+        
+        function sendViaWhatsApp() {
+            const trackingId = document.getElementById('trackingId').value.trim();
+            const phoneNumber = document.getElementById('phoneNumber').value.trim();
+            const messageTemplate = document.getElementById('message').value;
+            
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = '';
+            
+            // Validation
+            if (!trackingId) {
+                resultDiv.innerHTML = '<div class="error">❌ Please enter a Tracking ID</div>';
+                return;
+            }
+            
+            if (!phoneNumber) {
+                resultDiv.innerHTML = '<div class="error">❌ Please enter a phone number</div>';
+                return;
+            }
+            
+            // Build tracking URL
+            const baseUrl = window.location.origin;
+            const trackingUrl = `${baseUrl}/track/${trackingId}`;
+            
+            // Replace placeholder in message
+            const message = messageTemplate.replace('{TRACKING_URL}', trackingUrl);
+            
+            // Encode message for URL
+            const encodedMessage = encodeURIComponent(message);
+            
+            // Build WhatsApp URL
+            // Remove any + or - from phone number
+            const cleanPhone = phoneNumber.replace(/[\+\-\s]/g, '');
+            const whatsappUrl = `https://wa.me/${cleanPhone}?text=${encodedMessage}`;
+            
+            // Show success message
+            resultDiv.innerHTML = `
+                <div class="info">
+                    ✅ Opening WhatsApp...<br><br>
+                    <strong>Tracking URL:</strong><br>
+                    ${trackingUrl}
+                </div>
+            `;
+            
+            // Open WhatsApp
+            window.open(whatsappUrl, '_blank');
+        }
+        
+        // Allow Enter key to submit
+        document.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendViaWhatsApp();
+            }
+        });
+    </script>
+</body>
+</html>

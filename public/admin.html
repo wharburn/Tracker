@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>View Tracker</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #f5f5f5;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+        
+        .header {
+            background: #2c3e50;
+            color: white;
+            padding: 15px 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .header h1 {
+            font-size: 20px;
+        }
+        
+        .back-btn {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+        }
+        
+        .back-btn:hover {
+            background: rgba(255,255,255,0.3);
+        }
+        
+        .content {
+            flex: 1;
+            display: flex;
+            gap: 20px;
+            padding: 20px;
+        }
+        
+        .sidebar {
+            width: 350px;
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            overflow-y: auto;
+        }
+        
+        .map-container {
+            flex: 1;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        #map {
+            width: 100%;
+            height: 100%;
+        }
+        
+        .info-section {
+            margin-bottom: 25px;
+        }
+        
+        .info-section h3 {
+            font-size: 14px;
+            color: #7f8c8d;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 10px;
+        }
+        
+        .info-item {
+            background: #f8f9fa;
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 10px;
+        }
+        
+        .info-label {
+            font-size: 12px;
+            color: #6c757d;
+            margin-bottom: 4px;
+        }
+        
+        .info-value {
+            font-size: 16px;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+        
+        .status-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        
+        .status-indicator.active {
+            background: #28a745;
+            box-shadow: 0 0 0 3px rgba(40, 167, 69, 0.2);
+        }
+        
+        .status-indicator.inactive {
+            background: #dc3545;
+        }
+        
+        .history-list {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .history-item {
+            padding: 10px;
+            border-bottom: 1px solid #e9ecef;
+            font-size: 13px;
+        }
+        
+        .history-item:last-child {
+            border-bottom: none;
+        }
+        
+        .history-time {
+            color: #6c757d;
+            font-size: 11px;
+        }
+        
+        .btn {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-bottom: 10px;
+        }
+        
+        .btn-primary {
+            background: #3498db;
+            color: white;
+        }
+        
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+        
+        .btn:hover {
+            opacity: 0.9;
+        }
+        
+        .pulse {
+            animation: pulse 2s ease-in-out infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+        
+        @media (max-width: 768px) {
+            .content {
+                flex-direction: column;
+            }
+            
+            .sidebar {
+                width: 100%;
+            }
+            
+            .map-container {
+                height: 400px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>📍 Tracking: <span id="sessionName">Loading...</span></h1>
+        <a href="/" class="back-btn">← Back to Dashboard</a>
+    </div>
+    
+    <div class="content">
+        <div class="sidebar">
+            <div class="info-section">
+                <h3>Session Status</h3>
+                <div class="info-item">
+                    <div class="info-label">Status</div>
+                    <div class="info-value">
+                        <span id="statusIndicator" class="status-indicator active"></span>
+                        <span id="statusText">Active</span>
+                    </div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Session ID</div>
+                    <div class="info-value" id="sessionId">-</div>
+                </div>
+            </div>
+            
+            <div class="info-section">
+                <h3>Current Location</h3>
+                <div class="info-item">
+                    <div class="info-label">Latitude</div>
+                    <div class="info-value" id="latitude">-</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Longitude</div>
+                    <div class="info-value" id="longitude">-</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Accuracy</div>
+                    <div class="info-value" id="accuracy">-</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Last Update</div>
+                    <div class="info-value" id="lastUpdate">-</div>
+                </div>
+            </div>
+            
+            <div class="info-section">
+                <h3>Actions</h3>
+                <button class="btn btn-primary" onclick="centerMap()">🎯 Center on Location</button>
+                <button class="btn btn-primary" onclick="toggleHistory()">📊 Toggle History</button>
+                <button class="btn btn-danger" onclick="stopTracking()">⏹️ Stop Tracking</button>
+            </div>
+            
+            <div class="info-section" id="historySection" style="display: none;">
+                <h3>Location History</h3>
+                <div id="historyList" class="history-list"></div>
+            </div>
+        </div>
+        
+        <div class="map-container">
+            <div id="map"></div>
+        </div>
+    </div>
+    
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        const trackingId = window.location.pathname.split('/').pop();
+        const API_URL = window.location.origin;
+        const WS_URL = `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}`;
+        
+        let map = null;
+        let marker = null;
+        let polyline = null;
+        let locationHistory = [];
+        let ws = null;
+        
+        // Initialize map
+        map = L.map('map').setView([51.505, -0.09], 13);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
+        
+        // Load session info
+        async function loadSessionInfo() {
+            try {
+                const response = await fetch(`${API_URL}/api/sessions/${trackingId}`);
+                const session = await response.json();
+                
+                document.getElementById('sessionName').textContent = session.name;
+                document.getElementById('sessionId').textContent = session.id;
+                
+                const statusIndicator = document.getElementById('statusIndicator');
+                const statusText = document.getElementById('statusText');
+                
+                if (session.active) {
+                    statusIndicator.className = 'status-indicator active pulse';
+                    statusText.textContent = 'Active';
+                } else {
+                    statusIndicator.className = 'status-indicator inactive';
+                    statusText.textContent = 'Stopped';
+                }
+                
+                if (session.currentLocation) {
+                    updateLocation(session.currentLocation);
+                }
+                
+            } catch (error) {
+                console.error('Error loading session:', error);
+            }
+        }
+        
+        // Load location history
+        async function loadHistory() {
+            try {
+                const response = await fetch(`${API_URL}/api/location/${trackingId}/history`);
+                locationHistory = await response.json();
+                
+                if (locationHistory.length > 0) {
+                    // Draw path on map
+                    const coordinates = locationHistory.map(loc => [loc.latitude, loc.longitude]);
+                    
+                    if (polyline) {
+                        polyline.setLatLngs(coordinates);
+                    } else {
+                        polyline = L.polyline(coordinates, {
+                            color: '#3498db',
+                            weight: 3,
+                            opacity: 0.7
+                        }).addTo(map);
+                    }
+                    
+                    // Update history list
+                    updateHistoryList();
+                }
+                
+            } catch (error) {
+                console.error('Error loading history:', error);
+            }
+        }
+        
+        function updateHistoryList() {
+            const historyList = document.getElementById('historyList');
+            
+            if (locationHistory.length === 0) {
+                historyList.innerHTML = '<div style="text-align: center; color: #999; padding: 20px;">No history yet</div>';
+                return;
+            }
+            
+            historyList.innerHTML = locationHistory.slice().reverse().slice(0, 50).map(loc => {
+                const date = new Date(loc.timestamp);
+                return `
+                    <div class="history-item">
+                        <div>${loc.latitude.toFixed(6)}, ${loc.longitude.toFixed(6)}</div>
+                        <div class="history-time">${date.toLocaleString()}</div>
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        function updateLocation(location) {
+            const { latitude, longitude, accuracy, timestamp } = location;
+            
+            document.getElementById('latitude').textContent = latitude.toFixed(6);
+            document.getElementById('longitude').textContent = longitude.toFixed(6);
+            document.getElementById('accuracy').textContent = Math.round(accuracy) + 'm';
+            document.getElementById('lastUpdate').textContent = new Date(timestamp).toLocaleString();
+            
+            // Update marker
+            if (marker) {
+                marker.setLatLng([latitude, longitude]);
+            } else {
+                marker = L.marker([latitude, longitude], {
+                    icon: L.divIcon({
+                        className: 'pulse-marker',
+                        html: '<div style="background: #e74c3c; width: 20px; height: 20px; border-radius: 50%; border: 3px solid white; box-shadow: 0 0 10px rgba(0,0,0,0.5);"></div>'
+                    })
+                }).addTo(map);
+            }
+            
+            // Add to history
+            locationHistory.push(location);
+            
+            // Update polyline
+            if (polyline) {
+                const coordinates = locationHistory.map(loc => [loc.latitude, loc.longitude]);
+                polyline.setLatLngs(coordinates);
+            } else {
+                const coordinates = [[latitude, longitude]];
+                polyline = L.polyline(coordinates, {
+                    color: '#3498db',
+                    weight: 3,
+                    opacity: 0.7
+                }).addTo(map);
+            }
+        }
+        
+        function centerMap() {
+            if (marker) {
+                map.setView(marker.getLatLng(), 15);
+            }
+        }
+        
+        function toggleHistory() {
+            const section = document.getElementById('historySection');
+            section.style.display = section.style.display === 'none' ? 'block' : 'none';
+            
+            if (section.style.display === 'block') {
+                updateHistoryList();
+            }
+        }
+        
+        async function stopTracking() {
+            if (!confirm('Stop this tracking session?')) return;
+            
+            try {
+                await fetch(`${API_URL}/api/sessions/${trackingId}/stop`, {
+                    method: 'POST'
+                });
+                
+                document.getElementById('statusIndicator').className = 'status-indicator inactive';
+                document.getElementById('statusText').textContent = 'Stopped';
+                
+                if (ws) {
+                    ws.close();
+                }
+                
+            } catch (error) {
+                alert('Error stopping session: ' + error.message);
+            }
+        }
+        
+        // Connect to WebSocket for real-time updates
+        function connectWebSocket() {
+            ws = new WebSocket(WS_URL);
+            
+            ws.onopen = () => {
+                console.log('WebSocket connected');
+                ws.send(JSON.stringify({
+                    type: 'subscribe',
+                    trackingId: trackingId
+                }));
+            };
+            
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                
+                if (data.type === 'location') {
+                    updateLocation(data.data);
+                    centerMap();
+                }
+            };
+            
+            ws.onerror = (error) => {
+                console.error('WebSocket error:', error);
+            };
+            
+            ws.onclose = () => {
+                console.log('WebSocket disconnected');
+                // Reconnect after 3 seconds
+                setTimeout(connectWebSocket, 3000);
+            };
+        }
+        
+        // Initialize
+        loadSessionInfo();
+        loadHistory();
+        connectWebSocket();
+        
+        // Auto-refresh history every 30 seconds
+        setInterval(loadHistory, 30000);
+    </script>
+</body>
+</html>
